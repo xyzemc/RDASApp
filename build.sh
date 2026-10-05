@@ -144,7 +144,7 @@ esac
 # Set default number of build jobs based on machine
 if [[ $BUILD_TARGET == 'orion' ]]; then # lower due to memory limit on login nodes
   BUILD_JOBS=${BUILD_JOBS:-4}
-elif [[ $BUILD_TARGET == 'gaeac6' ]] || [[ $BUILD_TARGET == 'ursa' ]]; then # each node has 192 cores
+elif [[ $BUILD_TARGET == gaeac* ]] || [[ $BUILD_TARGET == 'ursa' ]]; then # each node has 192 cores
   BUILD_JOBS=${BUILD_JOBS:-12}
 else # hera, hercules, jet, etc
   BUILD_JOBS=${BUILD_JOBS:-6}
@@ -320,6 +320,12 @@ fi
 CRTM_DATA=$dir_root/bundle/test-data-release/crtm/2.4.0
 # i-jedi (and mist) are off by default; rrfs-workflow does not need them yet
 if [[ "$BUILD_IJEDI" == "YES" ]]; then
+  # Clone mist on demand if it has not been checked out yet.
+  # mist is private (needs GitHub login), so .gitmodules sets update=none to keep recursive clones anonymous.
+  if [[ ! -e $dir_root/sorc/mist/.git ]]; then
+    echo "Cloning private mist submodule (requires GitHub access to JCSDA-internal) ..."
+    git -C $dir_root submodule update --init --checkout sorc/mist
+  fi
   CMAKE_OPTS+=" -DBUILD_IJEDI=ON"
 else
   CMAKE_OPTS+=" -DBUILD_IJEDI=OFF"
