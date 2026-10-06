@@ -319,6 +319,9 @@ observations:
 - atms_npp
 - atms_n20
 - atms_n21
+- mhs_n19
+- mhs_metop-b
+- mhs_metop-c
 
 # Analysis iuse flag (default: passivate)
 # Upper-air conventional
