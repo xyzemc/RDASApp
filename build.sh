@@ -197,6 +197,8 @@ fi
 
 # Install the jcb clients
 if [[ $BUILD_JCB == 'YES' ]]; then
+  # Use the pinned parm/jcb-algorithms submodule; jcb_client_init.py would otherwise clone develop
+  ln -snf $dir_root/parm/jcb-algorithms $dir_root/sorc/jcb/src/jcb/configuration/algorithms
   cd $dir_root/sorc/jcb
   python jcb_client_init.py
   # Link the RDASApp/parm/jcb-rdas regular folder instead of submodule
@@ -217,11 +219,19 @@ if [[ $BUILD_RRFS_TEST == 'YES' ]]; then
 
   cd $dir_root/rrfs-test/testinput
 
+  # Prepare private ObsSpace templates and configs in the main test input directory.
+  if ! python "$dir_root/rrfs-test/ush/prepare_conv_obsspaces.py" \
+    --rdas-root "$dir_root" --output-dir "$dir_root/rrfs-test/testinput"; then
+    echo "Failed to prepare the conventional equivalence inputs" >&2
+    exit 9
+  fi
+
   ctest_yamls=(
     # Algorithm ctests
     rrfs_fv3jedi_2024052700_3dvar.yaml
     rrfs_fv3jedi_2024052700_3denvar.yaml
     rrfs_fv3jedi_2024052700_3denvar_mgbf.yaml
+    rrfs_ijedi_2024052700_3dvar.yaml
     rrfs_ijedi_2024052700_getkf_observer.yaml
     rrfs_ijedi_2024052700_getkf_solver.yaml
     rrfs_fv3jedi_2024052700_getkf.yaml
@@ -247,10 +257,38 @@ if [[ $BUILD_RRFS_TEST == 'YES' ]]; then
   cp $dir_root/parm/jcb-rdas/test/ci/run_jcb_ctest.py .
   for ctest_yaml in "${ctest_yamls[@]}"; do
     jcb_config="jcb-$ctest_yaml"
-    cp $dir_root/parm/jcb-rdas/test/ci/$jcb_config .
+    cp "$dir_root/parm/jcb-rdas/test/ci/$jcb_config" .
     python run_jcb_ctest.py 2024052700 $jcb_config $ctest_yaml
+    err=$?
+    if [[ $err != 0 ]]; then
+      echo "Failed: python run_jcb_ctest.py 2024052700 "${jcb_config}" "${ctest_yaml}""
+      exit 9
+    fi
     ctest=${ctest_yaml%.yaml}
   done
+
+  # Render the prepared pair without replacing their private template paths.
+  for ctest_yaml in \
+    rrfs_fv3jedi_2024052700_3dvar_conv_all_itemized.yaml \
+    rrfs_fv3jedi_2024052700_3dvar_conv_all_combined.yaml; do
+    jcb_config="jcb-$ctest_yaml"
+    python run_jcb_ctest.py 2024052700 "$jcb_config" "$ctest_yaml"
+    if [[ $? != 0 ]]; then
+      echo "Failed to render $jcb_config" >&2
+      exit 9
+    fi
+  done
+
+  # NA 3 km full-analysis ctest (rrfs-test-na3km)
+  cd $dir_root/rrfs-test-na3km/testinput
+  ctest_yaml=rrfs_fv3jedi_na3km_2024052701_analysis.yaml
+  cp $dir_root/parm/jcb-rdas/test/ci/run_jcb_ctest.py .
+  cp $dir_root/parm/jcb-rdas/test/ci/jcb-$ctest_yaml .
+  python run_jcb_ctest.py 2024052701 jcb-$ctest_yaml $ctest_yaml
+  if [[ $? != 0 ]]; then
+    echo "Failed: python run_jcb_ctest.py 2024052701 jcb-${ctest_yaml} ${ctest_yaml}"
+    exit 9
+  fi
   cd ${BUILD_DIR}
 
   # Link in test data for experiments: MPAS-JEDI
@@ -275,29 +313,21 @@ if [[ $BUILD_WORKAROUND == 'YES' ]]; then
   # Need to convert all the copy-based workaround methods to commit-based method
   #$dir_root/ush/apply_patches.sh
 
-  # Workaround for parallel IO developed by Dan Kokron at GDIT
-  cp ../sorc/_workaround_/fv3-jedi-io/CMakeLists.txt                            ../sorc/fv3-jedi/src/fv3jedi/CMakeLists.txt
-  cp ../sorc/_workaround_/fv3-jedi-io/Fields/fv3jedi_field_mod.f90              ../sorc/fv3-jedi/src/fv3jedi/Fields/fv3jedi_field_mod.f90
-  cp ../sorc/_workaround_/fv3-jedi-io/Geometry/fv3jedi_geom_mod.f90             ../sorc/fv3-jedi/src/fv3jedi/Geometry/fv3jedi_geom_mod.f90
-  cp ../sorc/_workaround_/fv3-jedi-io/IO/FV3Restart/IOFms.h                     ../sorc/fv3-jedi/src/fv3jedi/IO/FV3Restart/IOFms.h
-  cp ../sorc/_workaround_/fv3-jedi-io/IO/FV3Restart/IOFms.cc                    ../sorc/fv3-jedi/src/fv3jedi/IO/FV3Restart/IOFms.cc
-  cp ../sorc/_workaround_/fv3-jedi-io/IO/FV3Restart/IOFms.interface.F90         ../sorc/fv3-jedi/src/fv3jedi/IO/FV3Restart/IOFms.interface.F90
-  cp ../sorc/_workaround_/fv3-jedi-io/IO/FV3Restart/IOFms.interface.h           ../sorc/fv3-jedi/src/fv3jedi/IO/FV3Restart/IOFms.interface.h
-  cp ../sorc/_workaround_/fv3-jedi-io/IO/FV3Restart/fv3jedi_io_fms2_mod.f90     ../sorc/fv3-jedi/src/fv3jedi/IO/FV3Restart/fv3jedi_io_fms2_mod.f90
-  cp ../sorc/_workaround_/fv3-jedi-io/IO/FV3Restart/module_fv3lam_stats.f90     ../sorc/fv3-jedi/src/fv3jedi/IO/FV3Restart/module_fv3lam_stats.f90
-  cp ../sorc/_workaround_/fv3-jedi-io/IO/FV3Restart/m_TwoPhaseScatterGather.f90 ../sorc/fv3-jedi/src/fv3jedi/IO/FV3Restart/m_TwoPhaseScatterGather.f90
-
-  # Workaround for GSL surface operator
-  cp ../sorc/_workaround_/ufo/CMakeLists.txt   ../sorc/ufo/src/ufo/operators/sfccorrected/.
-  cp ../sorc/_workaround_/ufo/EvalSurface*     ../sorc/ufo/src/ufo/operators/sfccorrected/.
-  cp ../sorc/_workaround_/ufo/ObsSfcCorrected* ../sorc/ufo/src/ufo/operators/sfccorrected/.
-
   # Workaround for updating surface and delp states after outerloops (fv3-jedi PR1511)
   cp ../sorc/_workaround_/fv3-jedi/fv3jedi_state_mod.F90    ../sorc/fv3-jedi/src/fv3jedi/State/.
   cp ../sorc/_workaround_/fv3-jedi/FieldsMetadataDefault.h  ../sorc/fv3-jedi/src/fv3jedi/FieldMetadata/.
 
-  # DuplicateThinning zero-obs space fix
-  cp ../sorc/_workaround_/ufo/DuplicateThinning.cc ../sorc/ufo/src/ufo/filters/.
+  # Workaround for adding new variables when writing into existing restart files (no PR yet)
+  cp ../sorc/_workaround_/fv3-jedi/fv3jedi_io_fms2_mod.f90  ../sorc/fv3-jedi/src/fv3jedi/IO/FV3Restart/.
+
+  # Workaround for ObsErrorFactorPressureCheck.cc and At2M (no PR yet)
+  cp ../sorc/_workaround_/ufo/ObsErrorFactorPressureCheck.cc ../sorc/ufo/src/ufo/filters/obsfunctions/.
+
+  # Publish the scaled 10 m wind under the surface-wind name required by CRTM (no PR yet).
+  cp ../sorc/_workaround_/vader/WindSpeedAt10m_B.cc ../sorc/vader/src/vader/betaNames_CRTMRecipes/.
+
+  # Read the ensemble on its native geometry and convert it online to the inner-loop geometry (oops PR3346)
+  cp ../sorc/_workaround_/oops/EnsembleCovariance.h ../sorc/oops/src/oops/base/.
 
 fi
 
@@ -332,6 +362,11 @@ else
 fi
 
 CMAKE_OPTS+=" -DMPIEXEC_MAX_NUMPROCS:STRING=120 -DBUILD_SUPER_EXE=$BUILD_SUPER_EXE -DBUILD_RRFS_TEST=$BUILD_RRFS_TEST -DUFO_CRTM_TESTFILES_PATH=$CRTM_DATA"
+if [[ " ${CMAKE_OPTS:-} " == *" -DCRTM_VERSION=3 "* ]]; then
+  export LOCAL_PATH_JEDI_TESTFILES="$dir_root/fix/crtm/fix_REL-3.1.6.0"
+  echo "Using CRTMv3 3.1.6.0 coefficients from ${LOCAL_PATH_JEDI_TESTFILES}/fix"
+fi
+
 # Configure
 echo "Configuring ..."
 set -x
