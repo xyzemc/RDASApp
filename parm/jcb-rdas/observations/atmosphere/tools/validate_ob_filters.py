@@ -57,6 +57,9 @@ SAFE_WHERE_OBSPACES = {
     "cris-fsr_n21",
     "iasi_metop-b",
     "iasi_metop-c",
+    "mhs_n19",
+    "mhs_metop-b",
+    "mhs_metop-c",
     "gnss_zenithTotalDelay",
     "nexrad_radialVelocity_999",
 }
