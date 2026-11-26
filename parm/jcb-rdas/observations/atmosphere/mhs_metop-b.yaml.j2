@@ -77,26 +77,15 @@
          action:
            name: reduce obs space
      
-       # Data Thinning
-       #- filter: Gaussian Thinning
-       #  horizontal_mesh: 45
-       #  use_reduced_horizontal_grid: true
-       #  distance_norm: geodesic
-       #  round_horizontal_bin_count_to_nearest: true
-       ##  partition_longitude_bins_using_mesh: true
-       #  action:
-       #    name: reduce obs space
-
-       obs prior filters:
-       - filter: Bounds Check
-         filter variables:
-         - name: brightnessTemperature
-           channels: *mhs_metop-b_channels
-         test variables:
-         - name: GeoVaLs/observable_domain_mask
-           flag all filter variables if any test variable is out of bounds: true
-           minvalue: 0.0
-           maxvalue: 0.5
+        Data Thinning
+       - filter: Gaussian Thinning
+         horizontal_mesh: 45
+         use_reduced_horizontal_grid: true
+         distance_norm: geodesic
+         round_horizontal_bin_count_to_nearest: true
+       #  partition_longitude_bins_using_mesh: true
+         action:
+           name: reduce obs space
 
        # Observation Post Filters (QC)
        # -----------------------------
