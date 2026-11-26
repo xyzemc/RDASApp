@@ -43,6 +43,9 @@ ln -snf ${RDASApp}/fix/expr_data/${exprname}/data/bkg/20240527.000000.sfc_data.n
 rm -rf data/{obs,satbias_in}
 mkdir -p data/{obs,satbias_in,satbias_out}
 ln -snf ${RDASApp}/fix/expr_data/${exprname}/data/satbias_in/* data/satbias_in/
+# mhs_n19 satbias files are staged with "_" instead of "." before "satbias"
+ln -snf ${RDASApp}/fix/expr_data/${exprname}/data/satbias_in/mhs_n19_satbias.nc     data/satbias_in/mhs_n19.satbias.nc
+ln -snf ${RDASApp}/fix/expr_data/${exprname}/data/satbias_in/mhs_n19_satbias_cov.nc data/satbias_in/mhs_n19.satbias_cov.nc
 ln -snf ${RDASApp}/fix/expr_data/${exprname}/data/obs/* data/obs/  # keep this line for now to be backward compatible
 for dcfile in data/obs/ioda*dc.nc; do # link to DA runtime prescribed file names
   dcfile=${dcfile##*obs/}
